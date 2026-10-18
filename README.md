@@ -1,5 +1,7 @@
 # CUDA-Accelerated Image Processing Using Gaussian Blur and Sobel Edge Detection
 
+** Video link: https://l.facebook.com/l.php?u=https%3A%2F%2Fdrive.google.com%2Ffile%2Fd%2F1emMRqYc-5TVXcGrbcv7AjvbP8jFlqjlq%2Fview%3Fusp%3Dsharing%26fbclid%3DIwZXh0bgNhZW0CMTAAcGRvZgVicmlkETFiTjRGclVlM0FzdUExcGhzc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHkSM6GLX18PZqVgNdPrE9sP3Fd9IBDFnwXUDskJEzrzJUVqy_alfxAKFFhmS_aem_6UeBcFOdl8yvulDfxE7AQQ&h=AUD0elQe4no8U0qFJmM8ioH-u7T3JuMRoUQu8H-rE23-s9S7qFVopUToTYqOuksHVQ9cN-YqED32qvrRMsY3g6fnAptUDU1Km1HoVvcnyUsqb6_PYSPtQO_3rfucYXppEBeMJA
+
 **CEPARCO Integrating Project: Project Proposal (Milestone #1)**
 
 **Group members:** Matthew Fabregas, Kane Ibanez, Bowen Li, Jat Teoxon
