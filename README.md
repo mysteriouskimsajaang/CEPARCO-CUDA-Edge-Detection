@@ -3,6 +3,7 @@
 **CEPARCO Integrating Project: Project Proposal (Milestone #1)**
 
 **Group members:** Matthew Fabregas, Kane Ibanez, Bowen Li, Jat Teoxon
+[Presentation pitch video](https://drive.google.com/file/d/1emMRqYc-5TVXcGrbcv7AjvbP8jFlqjlq/view?usp=drive_link)
 
 ## Abstract
 
@@ -155,4 +156,3 @@ Smailović, A. (2019). Time performance comparison between GPU and CPU computing
 
 Zuo, H., Zhang, Q., Xu, Y., & Zhao, R. (2009). Fast Sobel edge detection algorithm based on GPU. Opto-Electronic Engineering, 36(1), 8. https://m.researching.cn/articles/OJb93f548102bc66f6
 
-[Presentation pitch video](https://drive.google.com/file/d/1emMRqYc-5TVXcGrbcv7AjvbP8jFlqjlq/view?usp=drive_link)
