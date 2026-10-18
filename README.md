@@ -6,158 +6,147 @@
 
 ## Abstract
 
-This project develops an image processing program that detects edges in digital images using Gaussian blur and Sobel edge detection. Edge detection applies the same calculation to every pixel in an image, which makes it a good fit for parallel computing. The group will build two versions of the program: a sequential version in C++ that runs on the CPU, and a parallel version in NVIDIA CUDA that runs on the GPU. Both versions will process the same images, and their outputs will be compared to check that the results are correct. The group will then measure and compare their execution times to see how much faster the parallel version is. The project aims to show how data-level parallelism on a GPU can improve the performance of image processing tasks.
+Our project is a program that finds the edges in a picture. It turns the image to grayscale, blurs it with a Gaussian blur to get rid of noise, and then uses a Sobel filter to mark where the edges are. Every pixel gets the same kind of math, which makes this a good fit for parallel computing. We will build two versions: a normal C++ version that runs on the CPU and handles one pixel at a time, and a CUDA version that runs on the GPU and handles many pixels at once. Both versions will run on the same images, and we will check that their outputs match. Then we will compare how long each one takes to see how much faster the GPU version is, and why.
 
-## 1. Project Description
+## 1. What we are building
 
-The project is an image processing application that detects edges in digital images using grayscale conversion, Gaussian blur, and Sobel edge detection. The group will implement two versions of the program:
+We are making an image processing program that detects edges using grayscale conversion, Gaussian blur, and Sobel edge detection. We will make two versions of it:
 
-1. **Sequential CPU version (C++):** processes image pixels one at a time using ordinary loops.
-2. **Parallel GPU version (CUDA):** processes image pixels using thousands of GPU threads under the SIMT model.
+1. CPU version (C++): loops through the pixels one at a time. This is our baseline.
+2. GPU version (CUDA): gives each pixel to its own GPU thread so thousands of pixels are processed together.
 
-The group will compare the correctness, execution time, and performance of both versions.
+Then we compare the CPU and GPU versions for correctness and speed.
 
-### 1.1 Inputs
+### Inputs
 
-The program takes digital color images (JPG or PNG) as input. The same images are used for both the CPU and GPU versions, at four sizes:
+The input is a color image (JPG or PNG). Both versions use the same images, in four sizes:
 
-| Test        | Image size  | Pixels    |
-| ----------- | ----------- | --------- |
-| Small       | 512 × 512   | 262,144   |
-| Medium      | 1024 × 1024 | 1,048,576 |
-| Large       | 1920 × 1080 | 2,073,600 |
+| Test | Image size | Pixels |
+|---|---:|---:|
+| Small | 512 × 512 | 262,144 |
+| Medium | 1024 × 1024 | 1,048,576 |
+| Large | 1920 × 1080 | 2,073,600 |
 | Extra large | 3840 × 2160 | 8,294,400 |
 
-### 1.2 Proposed Process
+### Outputs
 
-The image goes through three steps, one after the other:
+- A grayscale, a blurred, and an edge-detected version of each image
+- The run time of the CPU version and the GPU version (GPU kernel time, and total GPU time including copying data)
+- A check that the CPU and GPU outputs match
+- The speedup, saved in a CSV file and shown in a graph
 
-1. **Grayscale conversion:** each color pixel is converted to a single brightness value.
-2. **Gaussian blur:** each pixel is replaced by a weighted average of itself and its neighbors, which reduces noise.
-3. **Sobel edge detection:** each pixel's neighborhood is used to estimate how quickly brightness changes, and pixels with a strong change are marked as edges.
+## 2. What we will parallelize and how
 
-#### Processes to be parallelized (SIMT, GPU/CUDA)
+The image goes through three steps in order:
 
-All three steps will be parallelized. In each step, the result for one pixel does not depend on the results of other pixels, so many pixels can be processed at the same time. This is data-level parallelism.
+1. Grayscale: turn each color pixel into one brightness value.
+2. Gaussian blur: replace each pixel with a weighted average of itself and its neighbors, which smooths out noise.
+3. Sobel: look at how fast brightness changes around each pixel. A big change means an edge.
 
-#### Plan for parallelization
+We will parallelize all three. In each step, a pixel's result does not depend on the other pixels' results, so they can all be done at the same time. This is data-level parallelism.
 
-In the sequential version, nested loops visit each pixel one at a time. In the CUDA version, the work is divided as follows:
+### Our plan for the GPU version
 
-- Each GPU thread computes the output for one pixel.
-- Threads are grouped into two-dimensional blocks (for example, 16 × 16 threads), and enough blocks are launched to cover the whole image.
-- Each of the three steps is a separate GPU function (kernel). The intermediate results stay in GPU memory, so the image is copied to the GPU once and the final result is copied back once.
-- Pixels at the image border, which have missing neighbors, are handled the same way in the CPU and GPU versions so that their outputs can be compared fairly.
-- If time allows, the group will try to reduce slow global-memory reads in the blur and Sobel steps, for example by using shared memory. Because the group is still learning CUDA, the design details will be refined during development.
+- One GPU thread handles one output pixel.
+- Threads are grouped into 2D blocks, for example 16 × 16, and we launch enough blocks to cover the whole image.
+- Each step is its own CUDA kernel. The image is copied to the GPU once, all three kernels run there, and the result is copied back once.
+- Pixels at the border are missing some neighbors, so we will use the same border rule in the CPU and GPU versions. Otherwise the outputs will not match.
+- If we have time after the basic version works, we will try to speed up the blur and Sobel kernels, for example with shared memory.
 
-#### Processes that will not be parallelized
+We are still learning CUDA, so some details of this plan may change as we build it.
+
+### What will not be parallelized
 
 - Loading and saving image files
 - Allocating memory and copying data between the CPU and GPU
 - Comparing the CPU and GPU outputs
-- Timing, recording results, and creating graphs
+- Timing, saving results, and making graphs
 
-### 1.3 Outputs
+## 3. Related studies
 
-- A grayscale, a blurred, and an edge-detected version of each input image
-- Execution times of the CPU version and the GPU version (GPU kernel time, and total GPU time including data transfers)
-- A correctness check comparing the CPU and GPU outputs
-- Speedup results saved as a CSV file and shown in a performance graph
+GPU edge detection and image filtering have been studied before. Here are three studies close to our project.
 
-## 2. Project Objectives
+Smailović (2019) compared CPU and GPU computing using the Sobel filter on images of different sizes, and found that the GPU speedup grows as the image gets bigger. Their CPU version was written in Python, which makes the CPU baseline slow.
 
-By the end of the project, the group will:
+Ibrahim et al. (2021) looked at the 2D convolution behind Gaussian blur and ran it on both a multi-core CPU and a GPU with CUDA.
 
-- Implement grayscale conversion, Gaussian blur, and Sobel edge detection in C++.
-- Develop equivalent parallel algorithms using NVIDIA CUDA.
-- Compare CPU and GPU outputs to verify correctness.
-- Measure CPU execution time and GPU execution time.
-- Calculate speedup and analyze GPU performance.
-- Explain how parallel processing improves computational efficiency.
+Zuo et al. (2009) built a faster Sobel algorithm for CUDA GPUs using texture storage, multiple-point access, and symmetry computation. They reported a speedup of 122 times over a CPU version on 4096 × 4096 images.
 
-## 3. Related Studies
+### How ours is different
 
-Edge detection and image filtering on GPUs have been studied before. The following works are closely related to this project.
+Each of these focuses on one filter, or on a heavily optimized kernel. We put grayscale, Gaussian blur, and Sobel together in one pipeline, compare a simple sequential version with a simple parallel version, and report both kernel time and total time including data transfers. Our CPU version is in C++ (compiled in Release mode), so the comparison is fairer. We are not trying to build the fastest possible program. We want to understand how a sequential algorithm becomes a parallel one and measure the difference.
 
-1. **Sobel edge detection on CPU and GPU.** The paper "GPU and CPU Computing by Implementing an Edge-Detection Algorithm Using Sobel Filter" compares CPU and GPU computing using the Sobel filter, and reports that the GPU speedup increases as the image size increases [1].
-2. **Gaussian blur with CUDA.** "Gaussian Blur through Parallel Computing" presents the 2D convolution used in Gaussian blur and runs it on both a multi-core CPU and a GPU with CUDA [2].
-3. **Optimized GPU Sobel.** Zuo et al. present a fast Sobel algorithm for CUDA GPUs that uses texture storage, multiple-point access, and symmetry computation, and report a 122 times speedup over a CPU implementation on 4096 × 4096 images [3].
+## 4. Our setup
 
-**How this project differs.** These works each focus on a single filter, or on a highly optimized kernel. This project combines grayscale conversion, Gaussian blur, and Sobel edge detection into one pipeline, compares a straightforward sequential version with a straightforward parallel version, and reports both GPU kernel time and total time including data transfers. The goal is to understand how a sequential algorithm is converted into a parallel one and to measure the difference, not to build the fastest possible implementation.
+| Item | Details |
+|---|---|
+| GPU | NVIDIA RTX 4050 Laptop GPU |
+| CPU | [CPU model] |
+| Operating system | Windows |
+| Languages | C++ (CPU version), CUDA C++ (GPU version) |
+| Tools | Visual Studio, NVIDIA CUDA Toolkit, NVIDIA driver |
+| Code and submissions | GitHub |
+| Graphs (optional) | Python with Matplotlib |
 
-## 4. Target Implementation Platform
+We will compile the CPU version in Release mode so the CPU is not slowed down by debug settings. No microcontroller or circuit is needed for this project.
 
-| Item              | Details                                                 |
-| ----------------- | ------------------------------------------------------- |
-| GPU               | NVIDIA RTX 4050 Laptop GPU                              |
-| CPU               | [CPU model]                                             |
-| Operating system  | Windows                                                 |
-| Languages         | C++ (CPU version), CUDA C++ (GPU version)               |
-| Tools             | Visual Studio (C++), NVIDIA CUDA Toolkit, NVIDIA driver |
-| Source control    | GitHub                                                  |
-| Graphs (optional) | Python with Matplotlib                                  |
+## 5. How we will test and measure
 
-The CPU version will be compiled in Release mode (optimizations on) so that the comparison with the GPU is fair. No microcontroller or physical circuit is required.
+- Both versions use the same algorithm and the same images.
+- We compare CPU time with GPU kernel time, and also with the total GPU time including copying data to and from the GPU.
+- Each test runs several times and we use the average. The GPU gets one warm-up run first.
+- We time the GPU with CUDA events and the CPU with a standard C++ timer.
+- To check correctness, we compare the CPU and GPU output pixel by pixel. A tiny difference from rounding is okay.
+- Results go in a CSV file and into a graph of CPU vs. GPU time. We will find the actual speedup by testing it.
 
-## 5. Performance Evaluation Plan
+## 6. Who does what
 
-- The same algorithm and the same input images are used for the CPU and GPU versions.
-- CPU processing time is compared with GPU kernel time, and also with total GPU time including data transfers.
-- Each test is run several times and the average is reported. A warm-up run is done first on the GPU.
-- GPU time is measured with CUDA events and CPU time with a standard C++ timer.
-- Correctness is checked by comparing CPU and GPU output pixels, allowing a very small difference caused by rounding.
-- Results are saved to a CSV file and plotted as a CPU vs. GPU execution time graph. The speedup will be determined experimentally.
+| Member | Main job |
+|---|---|
+| Matthew Fabregas | Sequential CPU image processing |
+| Kane Ibanez | CUDA parallel implementation |
+| Bowen Li | Correctness testing and performance benchmarks |
+| Jat Teoxon | GitHub, documentation, and presentation |
 
-## 6. Group Responsibilities
+Everyone will help test, review each other's code, and explain the results.
 
-| Member           | Main responsibility                                 |
-| ---------------- | --------------------------------------------------- |
-| Matthew Fabregas | Sequential CPU image processing                     |
-| Kane Ibanez      | CUDA parallel implementation                        |
-| Bowen Li         | Correctness testing and performance benchmarks      |
-| Jat Teoxon       | GitHub integration, documentation, and presentation |
+## 7. Schedule and mid-project milestone
 
-All members will participate in testing, reviewing the code, and explaining the results.
+| Week | What we will have done |
+|---|---|
+| Week 6 | Milestone #1: this proposal and the 5–8 minute video pitch |
+| Week 10 | Milestone #2 (mid-project demo): the CPU version works and is tested on our sample images. A first working GPU version of grayscale, blur, and Sobel runs, and its output matches the CPU output. We have our first CPU vs. GPU timings. |
+| Week 13 | Milestone #3 (final submission and demo): improved GPU version, benchmarks for all four image sizes, speedup graph, correctness tests, write-up of the parallel algorithms, and the finished GitHub repo |
 
-## 7. Project Schedule and Mid-Project Milestones
-
-| Week    | Milestone                                                                                                                                                                                                                                                                     |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Week 6  | **Milestone #1:** project proposal document and 5-8 minute video pitch                                                                                                                                                                                                        |
-| Week 10 | **Milestone #2 (mid-project update demo):** the sequential CPU version works and is tested on the sample images; a first working GPU version of grayscale, Gaussian blur, and Sobel runs and its output matches the CPU output; first CPU vs. GPU timing results are recorded |
-| Week 13 | **Milestone #3 (final submission and demo):** improved GPU version, complete benchmarks at all four image sizes, speedup graph, correctness testing, documentation of the parallel algorithms, and the complete GitHub repository                                             |
-
-## 8. GitHub Project Structure
-
-The following folder structure is planned for development. Files will be added as the project progresses.
+## 8. GitHub project structure
 
 ```text
 CEPARCO-CUDA-Edge-Detection/
-  README.md
-  proposal/
-    project_proposal.pdf
-    video_pitch_link.md
-  src/
-    main.cpp
-    cpu_edge.cpp
-    cuda_edge.cu
-    image_utils.h
-  images/
-    input/
-    output/
-  benchmarks/
-    results.csv
-    speedup_graph.png
-  docs/
-    final_report.pdf
+├── README.md
+├── proposal/
+│   ├── project_proposal.pdf
+│   └── video_pitch_link.md
+├── src/
+│   ├── main.cpp
+│   ├── cpu_edge.cpp
+│   ├── cuda_edge.cu
+│   └── image_utils.h
+├── images/
+│   ├── input/
+│   └── output/
+├── benchmarks/
+│   ├── results.csv
+│   └── speedup_graph.png
+└── docs/
+    └── final_report.pdf
 ```
 
 ## References
 
-[1] "GPU and CPU Computing by Implementing an Edge-Detection Algorithm Using Sobel Filter," Bulletin of the Transilvania University of Brasov, Series I. https://webbut.unitbv.ro/index.php/Series_I/article/download/1084/968/1897
+Ibrahim, N. M., ElFarag, A. A., & Kadry, R. (2021). Gaussian blur through parallel computing. In Proceedings of the International Conference on Image Processing and Vision Engineering (pp. 175–179). SCITEPRESS. https://doi.org/10.5220/0010513301750179
 
-[2] "Gaussian Blur through Parallel Computing," SCITEPRESS, 2021. https://www.scitepress.org/Papers/2021/105133/pdf/index.html
+NVIDIA Corporation. (2026). CUDA C++ programming guide (Version 13.3). https://docs.nvidia.com/cuda/cuda-c-programming-guide/
 
-[3] H. Zuo, Q. Zhang, Y. Xu, and R. Zhao, "Fast Sobel Edge Detection Algorithm Based on GPU," Opto-Electronic Engineering, vol. 36, no. 1, p. 8, 2009. https://m.researching.cn/articles/OJb93f548102bc66f6
+Smailović, A. (2019). Time performance comparison between GPU and CPU computing by implementing an edge-detection algorithm using Sobel filter. Bulletin of the Transilvania University of Brașov, Series I: Engineering Sciences, 12(1), 49–55. https://doi.org/10.31926/but.ens.2019.12.61.7
 
-[4] NVIDIA, "CUDA C++ Programming Guide." https://docs.nvidia.com/cuda/cuda-c-programming-guide/
+Zuo, H., Zhang, Q., Xu, Y., & Zhao, R. (2009). Fast Sobel edge detection algorithm based on GPU. Opto-Electronic Engineering, 36(1), 8. https://m.researching.cn/articles/OJb93f548102bc66f6
