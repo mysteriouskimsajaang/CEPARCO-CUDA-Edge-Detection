@@ -64,7 +64,7 @@ The program has no image or file input. All inputs are numbers given by the user
 - The run time of the CPU version and the GPU version (GPU kernel time, and total GPU time including copying data)
 - A check that the CPU and GPU outputs match, and a smoothness report per terrain type
 - The speedup, saved in a CSV file and shown in graphs for RQ1 to RQ4
-- IF POSSIBLE IN THE FUTURE: We plan to 3D print the terrain.
+- **If we have time:** a multi-core (OpenMP) CPU version as an extra reference, grass/dirt/stone layers per column, a simple "snowy" color for high ground, and 3D printing a small piece of the terrain
 
 ## 2. What we will parallelize and how
 
@@ -239,8 +239,6 @@ Everyone will help test, review each other's code, and explain the results.
 ```text
 CEPARCO-CUDA-Terrain-Generation/
 ├── README.md
-├── proposal/
-│   ├── project_proposal.pdf
 ├── src/
 │   ├── main.cpp
 │   ├── terrain.h          (shared height function, __host__ __device__)
