@@ -166,7 +166,7 @@ Smoothness limit means the largest height difference between two neighboring col
 - Allocating memory and copying data between the CPU and GPU
 - Saving files, the 3D viewer, comparing CPU and GPU results, timing statistics, the CSV file and graphs
 
-**If we have time:** a multi-core (OpenMP) CPU version as an extra reference, grass/dirt/stone layers per column, and a simple "snowy" color for high ground. These are not part of the main scope or the milestones. Caves, structures and biome blending are out of scope. Additionally, a 3D printed model of a small piece of the terrain.
+**If we have time:** a multi-core (OpenMP) CPU version as an extra reference, grass/dirt/stone layers per column, a simple "snowy" color for high ground, and a 3D-printed model of a small piece of the terrain. These are not part of the main scope or the milestones. Caves, structures and biome blending are out of scope.
 
 We are still learning CUDA, so some details of this plan may change as we build it.
 
@@ -193,7 +193,7 @@ The existing GPU noise work targets shading and texturing in graphics APIs, and 
 | CPU | Intel Core i5-8400 (6 cores, 6 threads) |
 | GPU | NVIDIA GeForce GTX 1660 Super (Turing, compute capability 7.5, 22 SMs, 1,408 CUDA cores, 6 GB) |
 | RAM and OS | 16 GB, Windows 11 |
-| Software | Visual Studio, CUDA Toolkit, NVIDIA driver 617.42 |
+| Software | Visual Studio and CUDA Toolkit (versions to be added after installation), NVIDIA driver 617.42 |
 | Languages | C++ (CPU version), CUDA C++ (GPU version), Python (viewer and graphs only) |
 | Code and submissions | GitHub |
 
@@ -262,7 +262,7 @@ CEPARCO-CUDA-Terrain-Generation/
 
 ## References
 
-Concurrent Chunk Management Engine (C2ME). (n.d.). [Computer software]. CurseForge. https://www.curseforge.com/minecraft/mc-mods/c2me
+Concurrent Chunk Management Engine (C2ME). (n.d.). CurseForge. https://www.curseforge.com/minecraft/mc-mods/c2me
 
 Green, S. (2005). Implementing improved Perlin noise. In M. Pharr (Ed.), GPU Gems 2 (pp. 409–416). Addison-Wesley. https://developer.nvidia.com/gpugems/GPUGems2/gpugems2_chapter26.html
 
@@ -270,7 +270,7 @@ Lagae, A., Lefebvre, S., Cook, R., DeRose, T., Drettakis, G., Ebert, D. S., Lewi
 
 NVIDIA Corporation. (n.d.). CUDA C++ programming guide. https://docs.nvidia.com/cuda/cuda-c-programming-guide/
 
-Patel, A. J. (n.d.). [Page title]. Red Blob Games. https://www.redblobgames.com/maps/terrain-from-noise/
+Patel, A. J. (2015). Making maps with noise functions. Red Blob Games. https://www.redblobgames.com/maps/terrain-from-noise/
 
 Perlin, K. (1985). An image synthesizer. Computer Graphics (Proceedings of SIGGRAPH 85), 19(3), 287–296.
 
