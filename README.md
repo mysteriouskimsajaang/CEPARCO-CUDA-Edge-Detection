@@ -33,7 +33,7 @@ The program has no image or file input. All inputs are numbers given by the user
 | World size (W × H columns) | See the size tables below. |
 | World origin (x0, z0) | (0, 0) by default. Tests also use (-5000, 3000) and (1000000, -1000000) for negative and far-away coordinates. |
 | Terrain type | Plains, hilly, or mountains (see section 2). |
-| Octaves | Default per terrain type. For RQ2 we try 1, 2, 4, 6 and 8. |
+| Octaves | Default per terrain type. For RQ2 we also try 1, 2, 4, 6 and 8 octaves on the hilly type. |
 | Block size | 16 × 16 (256 threads) by default. For RQ3 we also try 8 × 8, 32 × 16 and 32 × 32. |
 
 **Benchmark sizes** (used for timing):
@@ -168,8 +168,6 @@ Smoothness limit means the largest height difference between two neighboring col
 
 **If we have time:** a multi-core (OpenMP) CPU version as an extra reference, grass/dirt/stone layers per column, a simple "snowy" color for high ground, and a 3D-printed model of a small piece of the terrain. These are not part of the main scope or the milestones. Caves, structures and biome blending are out of scope.
 
-We are still learning CUDA, so some details of this plan may change as we build it.
-
 ## 3. Related studies
 
 Perlin (1985) invented gradient noise and Perlin (2002) improved it; we use the improved version. Perlin (2004) says the improved noise is meant to give the same values on every platform, which is what we need for our CPU-vs-GPU check.
@@ -180,7 +178,7 @@ Lagae et al. (2010) is a survey of procedural noise functions.
 
 For Minecraft, the C2ME mod speeds up chunk generation by using more CPU cores (C2ME, n.d.).
 
-Patel (n.d.) is a tutorial that uses the same octave and ridged-noise approach as ours, and notes that noise alone has no large-scale features like rivers.
+Patel (2015) is a tutorial that uses the same octave and ridged-noise approach as ours, and notes that noise alone has no large-scale features like rivers.
 
 ### How ours is different
 
@@ -195,7 +193,6 @@ The existing GPU noise work targets shading and texturing in graphics APIs, and 
 | RAM and OS | 16 GB, Windows 11 |
 | Software | Visual Studio and CUDA Toolkit (versions to be added after installation), NVIDIA driver 617.42 |
 | Languages | C++ (CPU version), CUDA C++ (GPU version), Python (viewer and graphs only) |
-| Code and submissions | GitHub |
 
 All results come from this one PC, so the CPU and GPU are compared on the same machine. Google Colab is not used for any reported result. If we ever test on another machine, its results go in a separate table.
 
@@ -217,48 +214,13 @@ All results come from this one PC, so the CPU and GPU are compared on the same m
 | Two GPU runs, same input | Identical heights |
 | Smoothness | `dmax` of each terrain type ≤ its limit in the table |
 
-## 6. Who does what
-
-| Member | Main job |
-|---|---|
-| Matthew Fabregas | Sequential CPU version |
-| Kane Ibanez | CUDA kernels |
-| Bowen Li | Correctness testing and performance benchmarks |
-| Jat Teoxon | GitHub, documentation, 3D viewer, and presentation |
-
-Everyone will help test, review each other's code, and explain the results.
-
-## 7. Schedule and mid-project milestone
+## 6. Schedule and mid-project milestone
 
 | Week | What we will have done |
 |---|---|
 | Week 6 | Milestone #1: this proposal |
 | Week 10 | Milestone #2 (mid-project demo): the sequential CPU version is finished following section 2, and its heightmap picture looks like terrain. The first CUDA kernel (global memory) runs and passes the correctness checks on all edge-case sizes. We have our first CPU vs. GPU timings for at least three world sizes, and a first version of the 3D viewer. |
 | Week 13 | Milestone #3 (final submission and demo): all three terrain types and all five sizes, the constant and shared memory versions, the octave and block-size tests, reductions and the smoothness check, full correctness tests, results CSV and graphs, write-up of the parallel algorithms, and the finished GitHub repo |
-
-## 8. GitHub project structure
-
-```text
-CEPARCO-CUDA-Terrain-Generation/
-├── README.md
-├── src/
-│   ├── main.cpp
-│   ├── terrain.h          (shared height function, __host__ __device__)
-│   ├── cpu_terrain.cpp
-│   └── cuda_terrain.cu
-├── viewer/
-│   └── view_terrain.py
-├── tests/
-│   └── edge_case_tests.cpp
-├── output/
-│   ├── heightmaps/
-│   └── images/
-├── benchmarks/
-│   ├── results.csv
-│   └── speedup_graphs/
-└── docs/
-    └── final_report.pdf
-```
 
 ## References
 
