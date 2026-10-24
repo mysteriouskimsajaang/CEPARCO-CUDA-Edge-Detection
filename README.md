@@ -1,118 +1,229 @@
-# CUDA-Accelerated Image Processing Using Gaussian Blur and Sobel Edge Detection
+# CPU vs. GPU Terrain Generation: Measuring When CUDA Beats Sequential C++
 
-**CEPARCO Integrating Project: Project Proposal (Milestone #1)**
+**CEPARCO Integrating Project: Project Proposal (Revised Milestone #1)**
 
 **Group members:** Matthew Fabregas, Kane Ibanez, Bowen Li, Jat Teoxon
 
-**[Presentation pitch video](https://drive.google.com/file/d/1emMRqYc-5TVXcGrbcv7AjvbP8jFlqjlq/view?usp=drive_link)**
+**[Presentation pitch video](ADD-NEW-PITCH-VIDEO-LINK-HERE)**
 
 ## Abstract
 
-Our project is a program that finds the edges in a picture. It turns the image to grayscale, blurs it with a Gaussian blur to get rid of noise, and then uses a Sobel filter to mark where the edges are. Every pixel gets the same kind of math, which makes this a good fit for parallel computing. We will build two versions: a normal C++ version that runs on the CPU and handles one pixel at a time, and a CUDA version that runs on the GPU and handles many pixels at once. Both versions will run on the same images, and we will check that their outputs match. Then we will compare how long each one takes to see how much faster the GPU version is, and why.
+Minecraft worlds are generated from a seed. For each (x, z) column, the generator uses layered noise (Perlin noise) to decide the height Y of the ground. A column's height depends only on its own coordinates, the seed, and a small shared lookup table, so every column can be computed independently. This is data-level parallelism.
+
+We will build a simplified terrain generator with no caves, structures or villages, only the height of each column. We will make two versions and run both on the same PC: a sequential C++ version that computes one column at a time, and a CUDA version that gives each column its own GPU thread. We will check that both give the same heights, then compare their run times. We will test different world sizes, noise octaves, and three terrain types (plains, hilly, and mountains with a mountain-range look) to find out when the GPU becomes faster than the CPU, and why.
 
 ## 1. What we are building
 
-We are making an image processing program that detects edges using grayscale conversion, Gaussian blur, and Sobel edge detection. We will make two versions of it:
+Minecraft generates terrain on the CPU, one 16 × 16 chunk (256 columns) at a time, and mods such as C2ME spread this work over several CPU cores. A chunk is a tiny job for a GPU, because launching a kernel and copying data has a fixed cost. So the GPU may only help when a lot of terrain is generated at once.
 
-1. CPU version (C++): loops through the pixels one at a time. This is our baseline.
-2. GPU version (CUDA): gives each pixel to its own GPU thread so thousands of pixels are processed together.
+We do not copy Minecraft's real generator, and our terrain will not match a real Minecraft world with the same seed. We build a Minecraft-style heightmap generator and measure it. Our research questions are:
 
-Then we compare the CPU and GPU versions for correctness and speed.
+1. **RQ1:** At what world size (16 × 16 up to 4096 × 4096 columns) does the GPU become faster than the CPU?
+2. **RQ2:** How does the speedup change with the number of noise octaves and the terrain type?
+3. **RQ3:** How do memory type (global, constant, shared) and block size (64, 256, 512, 1024 threads) change GPU time?
+4. **RQ4:** How much of the GPU's total time is spent copying data?
+
+We also check that the terrain is smooth, meaning no sudden cliffs between neighboring columns.
 
 ### Inputs
 
-The input is a color image (JPG or PNG). Both versions use the same images, in four sizes:
+The program has no image or file input. All inputs are numbers given by the user:
 
-| Test | Image size | Pixels |
-|---|---:|---:|
-| Small | 512 × 512 | 262,144 |
-| Medium | 1024 × 1024 | 1,048,576 |
-| Large | 1920 × 1080 | 2,073,600 |
-| Extra large | 3840 × 2160 | 8,294,400 |
+| Input | Values |
+|---|---|
+| Seed | 64-bit integer. Default `3762183612631`. A second seed, `42`, is used in correctness tests. |
+| World size (W × H columns) | See the size tables below. |
+| World origin (x0, z0) | (0, 0) by default. Tests also use (-5000, 3000) and (1000000, -1000000) for negative and far-away coordinates. |
+| Terrain type | Plains, hilly, or mountains (see section 2). |
+| Octaves | Default per terrain type. For RQ2 we try 1, 2, 4, 6 and 8. |
+| Block size | 16 × 16 (256 threads) by default. For RQ3 we also try 8 × 8, 32 × 16 and 32 × 32. |
+
+**Benchmark sizes** (used for timing):
+
+| Test | World size | Columns | Chunks (16 × 16) |
+|---|---:|---:|---:|
+| One chunk | 16 × 16 | 256 | 1 |
+| Tiny | 64 × 64 | 4,096 | 16 |
+| Small | 256 × 256 | 65,536 | 256 |
+| Medium | 1024 × 1024 | 1,048,576 | 4,096 |
+| Large | 4096 × 4096 | 16,777,216 | 65,536 |
+
+**Edge-case sizes** (used for correctness and bounds checking). All benchmark sizes are multiples of 16, so they never leave a partly filled block. These sizes do:
+
+| Size | Why |
+|---|---|
+| 1 × 1, 3 × 3 | Smaller than one block. A 1 × 1 world has no neighbors. |
+| 2 × 100, 100 × 2 | Very thin: one side smaller than a block, the other very long. |
+| 15 × 17, 17 × 5 | One side just under or over the block size; partly filled blocks. |
+| 255 × 257 | Just under and just over a multiple of 16. |
+| 1001 × 777 | Random non-multiples, not square. |
+| 4097 × 4097 | One past the largest benchmark size. |
 
 ### Outputs
 
-- A grayscale, a blurred, and an edge-detected version of each image
+- A saved heightmap for each run, plus a grayscale picture of it
+- A rotatable 3D terrain viewer (Python, using the saved heights shrunk to about 512 × 512), colored from blue (low) to red (high). It is not part of any timing.
 - The run time of the CPU version and the GPU version (GPU kernel time, and total GPU time including copying data)
-- A check that the CPU and GPU outputs match
-- The speedup, saved in a CSV file and shown in a graph
+- A check that the CPU and GPU outputs match, and a smoothness report per terrain type
+- The speedup, saved in a CSV file and shown in graphs for RQ1 to RQ4
 
 ## 2. What we will parallelize and how
 
-The image goes through three steps in order:
+| Step | CPU (sequential) | GPU (CUDA) |
+|---|---|---|
+| 1. Height of every column | Nested loop over all columns | One kernel, one thread per column |
+| 2. Max, min and sum of heights | One loop over the height array | Reduction kernel (atomics, and a shared-memory version) |
+| 3. Smoothness check | One loop comparing each column to its right and lower neighbor | One kernel, then the same reduction |
 
-1. Grayscale: turn each color pixel into one brightness value.
-2. Gaussian blur: replace each pixel with a weighted average of itself and its neighbors, which smooths out noise.
-3. Sobel: look at how fast brightness changes around each pixel. A big change means an edge.
-
-We will parallelize all three. In each step, a pixel's result does not depend on the other pixels' results, so they can all be done at the same time. This is data-level parallelism.
+In step 1, each column's result does not depend on any other column, so they can all be done at the same time.
 
 ### Our plan for the GPU version
 
-- One GPU thread handles one output pixel.
-- Threads are grouped into 2D blocks, for example 16 × 16, and we launch enough blocks to cover the whole image.
-- Each step is its own CUDA kernel. The image is copied to the GPU once, all three kernels run there, and the result is copied back once.
-- Pixels at the border are missing some neighbors, so we will use the same border rule in the CPU and GPU versions. Otherwise the outputs will not match.
-- If we have time after the basic version works, we will try to speed up the blur and Sobel kernels, for example with shared memory.
+- **One thread per column.** In a 2D grid of blocks, each thread computes `x = blockIdx.x * blockDim.x + threadIdx.x` and `z = blockIdx.y * blockDim.y + threadIdx.y`. The grid has `ceil(W / bx) × ceil(H / by)` blocks. Each thread checks `if (x < W && z < H)` first, so threads in partly filled blocks do nothing (the edge-case sizes test this).
+- **Same function on CPU and GPU.** The height function is written once with `__host__ __device__`, so both versions run the same math.
+- **Permutation table.** Built once on the CPU from the seed (512 bytes) and copied to the GPU. We compare three places for it: global memory, constant memory and shared memory. Constant memory is fast when all threads read the same address, but noise lookups depend on the coordinates, so we treat it as something to test, not as a guaranteed speedup.
+- **Block size.** We test 64, 256, 512 and 1024 threads per block (8 × 8, 16 × 16, 32 × 16, 32 × 32).
+- **Max, min and sum.** First version: `atomicMax`, `atomicMin` and `atomicAdd` on one value. Second version: each block reduces in shared memory with `__syncthreads()`, then adds its result with one atomic. Our lecture notes that many threads using atomics on one location slows things down, so we expect the second version to be faster and will test it.
+- **Data transfer.** We compare explicit copies (`cudaMalloc` and `cudaMemcpy`) with unified memory (`cudaMallocManaged`, with and without prefetch). Heights stay on the GPU for the reductions, and only the final numbers are copied back.
 
-We are still learning CUDA, so some details of this plan may change as we build it.
+### The terrain formulas
+
+We fixed every formula and number so the CPU and GPU versions compute exactly the same thing.
+
+**A. Seed and permutation table.** The 64-bit seed drives a SplitMix64 generator that shuffles the numbers 0 to 255 (Fisher-Yates). The table is repeated to 512 entries.
+
+```text
+state = seed
+next(): state += 0x9E3779B97F4A7C15
+        z = state
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EB
+        return z ^ (z >> 31)
+p[i] = i for i = 0..255
+for i = 255 down to 1: j = next() mod (i + 1); swap(p[i], p[j])
+perm[i] = p[i mod 256] for i = 0..511
+```
+
+**B. 2D Perlin noise (improved version, Perlin 2002).**
+
+```text
+fade(t)       = 6t^5 - 15t^4 + 10t^3
+lerp(t, a, b) = a + t * (b - a)
+grad(h, x, z), using h mod 8:
+  0: x     1: -x     2: z     3: -z
+  4: x+z   5: -x+z   6: x-z   7: -x-z
+
+noise(x, z):
+  xi = floor(x); zi = floor(z)
+  X = xi AND 255; Z = zi AND 255
+  xf = x - xi; zf = z - zi
+  u = fade(xf); v = fade(zf)
+  aa = perm[perm[X] + Z]       ba = perm[perm[X+1] + Z]
+  ab = perm[perm[X] + Z + 1]   bb = perm[perm[X+1] + Z + 1]
+  return lerp(v, lerp(u, grad(aa, xf, zf),   grad(ba, xf-1, zf)),
+                 lerp(u, grad(ab, xf, zf-1), grad(bb, xf-1, zf-1)))
+```
+
+The result is a smooth value between about -1 and 1. Nearby inputs give nearby outputs, so neighboring columns get similar heights.
+
+**C. Octaves and terrain height.** We add several noise layers (octaves). Each octave has double the frequency (lacunarity 2.0) and half the strength (persistence 0.5) of the previous one. Mountains use **ridged** noise: the value of each octave is flipped so that the lines where noise is near 0 become sharp ridges. With a low base frequency, this gives long mountain ranges instead of random spikes.
+
+```text
+fbm(xw, zw):
+  sum = 0; amp = 1; freq = f0
+  for o = 0 .. N-1:
+    n = noise(xw*freq + 17.37*o, zw*freq + 31.91*o)
+    if ridged: n = 1 - 2 * abs(n)
+    sum += amp * n
+    freq = freq * 2.0; amp = amp * 0.5
+  return sum * invNorm        invNorm = 1 / (2 * (1 - 0.5^N))
+
+xw = x0 + x;  zw = z0 + z
+h  = clamp( floor( B + A * fbm(float(xw), float(zw)) ), -64, 319 )
+```
+
+The height range -64 to 319 is the build range of recent Minecraft versions, used as a reference. The three terrain types only differ in these numbers (B = base height, A = amplitude in blocks, f0 = base frequency, N = octaves):
+
+| Type | Noise | B | A | f0 | N | Height range (B ± A) | Smoothness limit |
+|---|---|---:|---:|---:|---:|---|---|
+| Plains | normal | 64 | 8 | 0.004 | 2 | 56 to 72 | ≤ 2 blocks |
+| Hilly | normal | 72 | 24 | 0.008 | 4 | 48 to 96 | ≤ 4 blocks |
+| Mountains | ridged | 100 | 90 | 0.004 | 6 | 10 to 190 | ≤ 8 blocks |
+
+Smoothness limit means the largest height difference between two neighboring columns. These limits are our targets. If a terrain type goes over its limit during testing, we adjust its numbers and report it.
+
+**D. Precision, rounding and clamping.**
+
+- All noise math uses 32-bit `float` on both CPU and GPU. The table is `uint8_t`, heights are `int`, and sums are 64-bit integers.
+- Rounding is `floorf` (round down), then convert to `int`. Heights are clamped to [-64, 319], and we report how many columns were clamped (expected 0).
+- For the grayscale picture only, a height h is scaled to 0 to 255 using `round(255 * (h - hmin) / (hmax - hmin))`. This is for display and is not part of the comparison.
+- The CPU is compiled in Release mode and the GPU with `nvcc -O3 --fmad=false`. We do not use fast-math or fused multiply-add on either side, so both round the same way.
+
+**E. Statistics.** We compute `hmax`, `hmin`, `hsum` and the average height. For smoothness, each column gets `d = max(|h(x,z) - h(x+1,z)|, |h(x,z) - h(x,z+1)|)` using only neighbors that exist (a 1 × 1 world has d = 0), and we report `dmax` and the average d.
 
 ### What will not be parallelized
 
-- Loading and saving image files
+- Building the permutation table from the seed (once, 256 values)
 - Allocating memory and copying data between the CPU and GPU
-- Comparing the CPU and GPU outputs
-- Timing, saving results, and making graphs
+- Saving files, the 3D viewer, comparing CPU and GPU results, timing statistics, the CSV file and graphs
+
+**If we have time:** a multi-core (OpenMP) CPU version as an extra reference, grass/dirt/stone layers per column, and a simple "snowy" color for high ground. These are not part of the main scope or the milestones. Caves, structures and biome blending are out of scope.
+
+We are still learning CUDA, so some details of this plan may change as we build it.
 
 ## 3. Related studies
 
-GPU edge detection and image filtering have been studied before. Here are three studies close to our project.
+Perlin (1985) invented gradient noise and Perlin (2002) improved it; we use the improved version. Perlin (2004) says the improved noise is meant to give the same values on every platform, which is what we need for our CPU-vs-GPU check.
 
-Smailović (2019) compared CPU and GPU computing using the Sobel filter on images of different sizes, and found that the GPU speedup grows as the image gets bigger. Their CPU version was written in Python, which makes the CPU baseline slow.
+Green (2005) already ran improved Perlin noise on a GPU using shaders, and it matched the CPU version, so GPU noise is not new.
 
-Ibrahim et al. (2021) looked at the 2D convolution behind Gaussian blur and ran it on both a multi-core CPU and a GPU with CUDA.
+Lagae et al. (2010) is a survey of procedural noise functions.
 
-Zuo et al. (2009) built a faster Sobel algorithm for CUDA GPUs using texture storage, multiple-point access, and symmetry computation. They reported a speedup of 122 times over a CPU version on 4096 × 4096 images.
+For Minecraft, the C2ME mod speeds up chunk generation by using more CPU cores (C2ME, n.d.).
 
 ### How ours is different
 
-Each of these focuses on one filter, or on a heavily optimized kernel. We put grayscale, Gaussian blur, and Sobel together in one pipeline, compare a simple sequential version with a simple parallel version, and report both kernel time and total time including data transfers. Our CPU version is in C++ (compiled in Release mode), so the comparison is fairer. We are not trying to build the fastest possible program. We want to understand how a sequential algorithm becomes a parallel one and measure the difference.
+The existing GPU noise work targets shading and texturing in graphics APIs, and C2ME targets multi-core CPUs. Our project uses CUDA to generate a whole heightmap and focuses on measuring: the world size where the GPU wins, the effect of work per column, memory type and block size, and the cost of copying data. We report both kernel time and total time including transfers, and we use the same PC for the CPU and GPU. We do not claim a new terrain algorithm.
 
 ## 4. Our setup
 
 | Item | Details |
 |---|---|
-| GPU | NVIDIA RTX 4050 Laptop GPU |
-| CPU | Intel Core i7 14th Gen |
-| Operating system | Windows |
-| Languages | C++ (CPU version), CUDA C++ (GPU version) |
-| Tools | Visual Studio, NVIDIA CUDA Toolkit, NVIDIA driver, Google Colab |
+| CPU | Intel Core i5-8400 (6 cores, 6 threads) |
+| GPU | NVIDIA GeForce GTX 1660 Super (Turing, compute capability 7.5, 22 SMs, 1,408 CUDA cores, 6 GB) |
+| RAM and OS | [__ GB], [__] |
+| Software | Visual Studio [__], CUDA Toolkit [__], NVIDIA driver [__] |
+| Languages | C++ (CPU version), CUDA C++ (GPU version), Python (viewer and graphs only) |
 | Code and submissions | GitHub |
-| Graphs (optional) | Python with Matplotlib |
 
-We will compile the CPU version in Release mode so the CPU is not slowed down by debug settings. No microcontroller or circuit is needed for this project.
-
-## Google Colab for CUDA
-
-The CUDA implementation will be developed and tested using Google Colab with a GPU runtime.
+All results come from this one PC, so the CPU and GPU are compared on the same machine. Google Colab is not used for any reported result. If we ever test on another machine, its results go in a separate table.
 
 ## 5. How we will test and measure
 
-- Both versions use the same algorithm and the same images.
-- We compare CPU time with GPU kernel time, and also with the total GPU time including copying data to and from the GPU.
-- Each test runs several times and we use the average. The GPU gets one warm-up run first.
-- We time the GPU with CUDA events and the CPU with a standard C++ timer.
-- To check correctness, we compare the CPU and GPU output pixel by pixel. A tiny difference from rounding is okay.
-- Results go in a CSV file and into a graph of CPU vs. GPU time. We will find the actual speedup by testing it.
+- Both versions use the same seed, terrain type and world size, in the same session.
+- We time the CPU with `std::chrono` and the GPU with CUDA events. We report kernel time and total time (copy to GPU, kernels, copy back).
+- Each test has one warm-up run and then 10 timed runs. We report the average, minimum and standard deviation.
+- Speedup = CPU average time / GPU average time. We always state whether it uses kernel time or total time.
+- Results go in a CSV file and into graphs. We will find the actual speedup by testing it.
+
+**Correctness checks** (run on every edge-case size, both seeds, and all three origins):
+
+| Check | Pass criterion |
+|---|---|
+| Heights, CPU vs GPU | Largest difference ≤ 1 block and at most 0.01% of columns different. We expect 0 and will report the real numbers. |
+| Noise value before rounding | Largest difference ≤ 0.00001 (in a test build that saves the values) |
+| Max, min, sum, smoothness (GPU vs CPU on the same heights) | Exactly equal (integers) |
+| Two GPU runs, same input | Identical heights |
+| Smoothness | `dmax` of each terrain type ≤ its limit in the table |
 
 ## 6. Who does what
 
 | Member | Main job |
 |---|---|
-| Matthew Fabregas | Sequential CPU image processing |
-| Kane Ibanez | CUDA parallel implementation |
+| Matthew Fabregas | Sequential CPU version |
+| Kane Ibanez | CUDA kernels |
 | Bowen Li | Correctness testing and performance benchmarks |
-| Jat Teexon | GitHub, documentation, and presentation |
+| Jat Teoxon | GitHub, documentation, 3D viewer, and presentation |
 
 Everyone will help test, review each other's code, and explain the results.
 
@@ -121,39 +232,48 @@ Everyone will help test, review each other's code, and explain the results.
 | Week | What we will have done |
 |---|---|
 | Week 6 | Milestone #1: this proposal and the 5–8 minute video pitch |
-| Week 10 | Milestone #2 (mid-project demo): the CPU version works and is tested on our sample images. A first working GPU version of grayscale, blur, and Sobel runs, and its output matches the CPU output. We have our first CPU vs. GPU timings. |
-| Week 13 | Milestone #3 (final submission and demo): improved GPU version, benchmarks for all four image sizes, speedup graph, correctness tests, write-up of the parallel algorithms, and the finished GitHub repo |
+| Week 10 | Milestone #2 (mid-project demo): the sequential CPU version is finished following section 2, and its heightmap picture looks like terrain. The first CUDA kernel (global memory) runs and passes the correctness checks on all edge-case sizes. We have our first CPU vs. GPU timings for at least three world sizes, and a first version of the 3D viewer. |
+| Week 13 | Milestone #3 (final submission and demo): all three terrain types and all five sizes, the constant and shared memory versions, the octave and block-size tests, reductions and the smoothness check, full correctness tests, results CSV and graphs, write-up of the parallel algorithms, and the finished GitHub repo |
 
 ## 8. GitHub project structure
 
 ```text
-CEPARCO-CUDA-Edge-Detection/
+CEPARCO-CUDA-Terrain-Generation/
 ├── README.md
 ├── proposal/
 │   ├── project_proposal.pdf
 │   └── video_pitch_link.md
 ├── src/
 │   ├── main.cpp
-│   ├── cpu_edge.cpp
-│   ├── cuda_edge.cu
-│   └── image_utils.h
-├── images/
-│   ├── input/
-│   └── output/
+│   ├── terrain.h          (shared height function, __host__ __device__)
+│   ├── cpu_terrain.cpp
+│   └── cuda_terrain.cu
+├── viewer/
+│   └── view_terrain.py
+├── tests/
+│   └── edge_case_tests.cpp
+├── output/
+│   ├── heightmaps/
+│   └── images/
 ├── benchmarks/
 │   ├── results.csv
-│   └── speedup_graph.png
+│   └── speedup_graphs/
 └── docs/
     └── final_report.pdf
 ```
 
 ## References
 
-Ibrahim, N. M., ElFarag, A. A., & Kadry, R. (2021). Gaussian blur through parallel computing. In Proceedings of the International Conference on Image Processing and Vision Engineering (pp. 175–179). SCITEPRESS. https://doi.org/10.5220/0010513301750179
+Concurrent Chunk Management Engine (C2ME). (n.d.). [Computer software]. Modrinth. https://modrinth.com/mod/c2me-fabric
 
-NVIDIA Corporation. (2026). CUDA C++ programming guide (Version 13.3). https://docs.nvidia.com/cuda/cuda-c-programming-guide/
+Green, S. (2005). Implementing improved Perlin noise. In M. Pharr (Ed.), GPU Gems 2 (pp. 409–416). Addison-Wesley. https://developer.nvidia.com/gpugems/GPUGems2/gpugems2_chapter26.html
 
-Smailović, A. (2019). Time performance comparison between GPU and CPU computing by implementing an edge-detection algorithm using Sobel filter. Bulletin of the Transilvania University of Brașov, Series I: Engineering Sciences, 12(1), 49–55. https://doi.org/10.31926/but.ens.2019.12.61.7
+Lagae, A., Lefebvre, S., Cook, R., DeRose, T., Drettakis, G., Ebert, D. S., Lewis, J. P., Perlin, K., & Zwicker, M. (2010). A survey of procedural noise functions. Computer Graphics Forum, 29(8), 2579–2600. https://doi.org/10.1111/j.1467-8659.2010.01827.x
 
-Zuo, H., Zhang, Q., Xu, Y., & Zhao, R. (2009). Fast Sobel edge detection algorithm based on GPU. Opto-Electronic Engineering, 36(1), 8. https://m.researching.cn/articles/OJb93f548102bc66f6
+NVIDIA Corporation. (n.d.). CUDA C++ programming guide. https://docs.nvidia.com/cuda/cuda-c-programming-guide/
 
+Perlin, K. (1985). An image synthesizer. Computer Graphics (Proceedings of SIGGRAPH 85), 19(3), 287–296.
+
+Perlin, K. (2002). Improving noise. ACM Transactions on Graphics, 21(3), 681–682. https://doi.org/10.1145/566654.566636
+
+Perlin, K. (2004). Implementing improved Perlin noise. In R. Fernando (Ed.), GPU Gems (pp. 73–85). Addison-Wesley. https://developer.nvidia.com/gpugems/GPUGems/gpugems_ch05.html
