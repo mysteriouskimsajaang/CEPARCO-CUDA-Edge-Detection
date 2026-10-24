@@ -12,7 +12,7 @@ Minecraft worlds are generated from a seed. For each (x, z) column, the generato
 
 We will build a simplified terrain generator with no caves, structures or villages, only the height of each column. We will make two versions and run both on the same PC: a sequential C++ version that computes one column at a time, and a CUDA version that gives each column its own GPU thread. We will check that both give the same heights, then compare their run times. We will test different world sizes, noise octaves, and three terrain types (plains, hilly, and mountains with a mountain-range look) to find out when the GPU becomes faster than the CPU, and why.
 
-## 1. What we are building
+## 1. Project Description
 
 Minecraft generates terrain on the CPU, one 16 × 16 chunk (256 columns) at a time, and mods such as C2ME spread this work over several CPU cores. A chunk is a tiny job for a GPU, because launching a kernel and copying data has a fixed cost. So the GPU may only help when a lot of terrain is generated at once.
 
