@@ -230,7 +230,7 @@ Everyone will help test, review each other's code, and explain the results.
 
 | Week | What we will have done |
 |---|---|
-| Week 6 | Milestone #1: this proposal and the 5–8 minute video pitch |
+| Week 6 | Milestone #1: this proposal |
 | Week 10 | Milestone #2 (mid-project demo): the sequential CPU version is finished following section 2, and its heightmap picture looks like terrain. The first CUDA kernel (global memory) runs and passes the correctness checks on all edge-case sizes. We have our first CPU vs. GPU timings for at least three world sizes, and a first version of the 3D viewer. |
 | Week 13 | Milestone #3 (final submission and demo): all three terrain types and all five sizes, the constant and shared memory versions, the octave and block-size tests, reductions and the smoothness check, full correctness tests, results CSV and graphs, write-up of the parallel algorithms, and the finished GitHub repo |
 
