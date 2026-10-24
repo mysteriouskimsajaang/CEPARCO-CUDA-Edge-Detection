@@ -241,7 +241,6 @@ CEPARCO-CUDA-Terrain-Generation/
 ├── README.md
 ├── proposal/
 │   ├── project_proposal.pdf
-│   └── video_pitch_link.md
 ├── src/
 │   ├── main.cpp
 │   ├── terrain.h          (shared height function, __host__ __device__)
