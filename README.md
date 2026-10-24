@@ -191,7 +191,7 @@ The existing GPU noise work targets shading and texturing in graphics APIs, and 
 | CPU | Intel Core i5-8400 (6 cores, 6 threads) |
 | GPU | NVIDIA GeForce GTX 1660 Super (Turing, compute capability 7.5, 22 SMs, 1,408 CUDA cores, 6 GB) |
 | RAM and OS | 16 GB, Windows 11 |
-| Software | Visual Studio, CUDA Toolkit, NVIDIA driver |
+| Software | Visual Studio, CUDA Toolkit, NVIDIA driver 617.42|
 | Languages | C++ (CPU version), CUDA C++ (GPU version), Python (viewer and graphs only) |
 | Code and submissions | GitHub |
 
@@ -260,7 +260,7 @@ CEPARCO-CUDA-Terrain-Generation/
 
 ## References
 
-Concurrent Chunk Management Engine (C2ME). (n.d.). [Computer software]. Modrinth. https://modrinth.com/mod/c2me-fabric
+Concurrent Chunk Management Engine (C2ME). (n.d.). [Computer software]. CurseForge. https://www.curseforge.com/minecraft/mc-mods/c2me
 
 Green, S. (2005). Implementing improved Perlin noise. In M. Pharr (Ed.), GPU Gems 2 (pp. 409–416). Addison-Wesley. https://developer.nvidia.com/gpugems/GPUGems2/gpugems2_chapter26.html
 
