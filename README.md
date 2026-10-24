@@ -191,8 +191,8 @@ The existing GPU noise work targets shading and texturing in graphics APIs, and 
 |---|---|
 | CPU | Intel Core i5-8400 (6 cores, 6 threads) |
 | GPU | NVIDIA GeForce GTX 1660 Super (Turing, compute capability 7.5, 22 SMs, 1,408 CUDA cores, 6 GB) |
-| RAM and OS | [__ GB], [__] |
-| Software | Visual Studio [__], CUDA Toolkit [__], NVIDIA driver [__] |
+| RAM and OS | 16 GB, Windows 11 |
+| Software | Visual Studio, CUDA Toolkit, NVIDIA driver |
 | Languages | C++ (CPU version), CUDA C++ (GPU version), Python (viewer and graphs only) |
 | Code and submissions | GitHub |
 
