@@ -4,8 +4,6 @@
 
 **Group members:** Matthew Fabregas, Kane Ibanez, Bowen Li, Jat Teoxon
 
-**[Presentation pitch video](ADD-NEW-PITCH-VIDEO-LINK-HERE)**
-
 ## Abstract
 
 Minecraft worlds are generated from a seed. For each (x, z) column, the generator uses layered noise (Perlin noise) to decide the height Y of the ground. A column's height depends only on its own coordinates, the seed, and a small shared lookup table, so every column can be computed independently. This is data-level parallelism.
