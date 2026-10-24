@@ -64,7 +64,6 @@ The program has no image or file input. All inputs are numbers given by the user
 - The run time of the CPU version and the GPU version (GPU kernel time, and total GPU time including copying data)
 - A check that the CPU and GPU outputs match, and a smoothness report per terrain type
 - The speedup, saved in a CSV file and shown in graphs for RQ1 to RQ4
-- **If we have time:** a multi-core (OpenMP) CPU version as an extra reference, grass/dirt/stone layers per column, a simple "snowy" color for high ground, and 3D printing a small piece of the terrain
 
 ## 2. What we will parallelize and how
 
@@ -84,6 +83,7 @@ In step 1, each column's result does not depend on any other column, so they can
 - **Block size.** We test 64, 256, 512 and 1024 threads per block (8 × 8, 16 × 16, 32 × 16, 32 × 32).
 - **Max, min and sum.** First version: `atomicMax`, `atomicMin` and `atomicAdd` on one value. Second version: each block reduces in shared memory with `__syncthreads()`, then adds its result with one atomic. Our lecture notes that many threads using atomics on one location slows things down, so we expect the second version to be faster and will test it.
 - **Data transfer.** We compare explicit copies (`cudaMalloc` and `cudaMemcpy`) with unified memory (`cudaMallocManaged`, with and without prefetch). Heights stay on the GPU for the reductions, and only the final numbers are copied back.
+- We follow the CUDA thread, block and memory model described in the CUDA C++ Programming Guide (NVIDIA, n.d.) and our lecture.
 
 ### The terrain formulas
 
@@ -166,7 +166,7 @@ Smoothness limit means the largest height difference between two neighboring col
 - Allocating memory and copying data between the CPU and GPU
 - Saving files, the 3D viewer, comparing CPU and GPU results, timing statistics, the CSV file and graphs
 
-**If we have time:** a multi-core (OpenMP) CPU version as an extra reference, grass/dirt/stone layers per column, and a simple "snowy" color for high ground. These are not part of the main scope or the milestones. Caves, structures and biome blending are out of scope.
+**If we have time:** a multi-core (OpenMP) CPU version as an extra reference, grass/dirt/stone layers per column, and a simple "snowy" color for high ground. These are not part of the main scope or the milestones. Caves, structures and biome blending are out of scope. Additionally, a 3D printed model of a small piece of the terrain.
 
 We are still learning CUDA, so some details of this plan may change as we build it.
 
@@ -180,6 +180,8 @@ Lagae et al. (2010) is a survey of procedural noise functions.
 
 For Minecraft, the C2ME mod speeds up chunk generation by using more CPU cores (C2ME, n.d.).
 
+Patel (n.d.) is a tutorial that uses the same octave and ridged-noise approach as ours, and notes that noise alone has no large-scale features like rivers.
+
 ### How ours is different
 
 The existing GPU noise work targets shading and texturing in graphics APIs, and C2ME targets multi-core CPUs. Our project uses CUDA to generate a whole heightmap and focuses on measuring: the world size where the GPU wins, the effect of work per column, memory type and block size, and the cost of copying data. We report both kernel time and total time including transfers, and we use the same PC for the CPU and GPU. We do not claim a new terrain algorithm.
@@ -191,7 +193,7 @@ The existing GPU noise work targets shading and texturing in graphics APIs, and 
 | CPU | Intel Core i5-8400 (6 cores, 6 threads) |
 | GPU | NVIDIA GeForce GTX 1660 Super (Turing, compute capability 7.5, 22 SMs, 1,408 CUDA cores, 6 GB) |
 | RAM and OS | 16 GB, Windows 11 |
-| Software | Visual Studio, CUDA Toolkit, NVIDIA driver 617.42|
+| Software | Visual Studio, CUDA Toolkit, NVIDIA driver 617.42 |
 | Languages | C++ (CPU version), CUDA C++ (GPU version), Python (viewer and graphs only) |
 | Code and submissions | GitHub |
 
@@ -267,6 +269,8 @@ Green, S. (2005). Implementing improved Perlin noise. In M. Pharr (Ed.), GPU Gem
 Lagae, A., Lefebvre, S., Cook, R., DeRose, T., Drettakis, G., Ebert, D. S., Lewis, J. P., Perlin, K., & Zwicker, M. (2010). A survey of procedural noise functions. Computer Graphics Forum, 29(8), 2579–2600. https://doi.org/10.1111/j.1467-8659.2010.01827.x
 
 NVIDIA Corporation. (n.d.). CUDA C++ programming guide. https://docs.nvidia.com/cuda/cuda-c-programming-guide/
+
+Patel, A. J. (n.d.). [Page title]. Red Blob Games. https://www.redblobgames.com/maps/terrain-from-noise/
 
 Perlin, K. (1985). An image synthesizer. Computer Graphics (Proceedings of SIGGRAPH 85), 19(3), 287–296.
 
