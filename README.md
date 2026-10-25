@@ -6,15 +6,15 @@
 
 ## Abstract
 
-In Minecraft, the world is made from a seed. For every (x, z) spot, the game uses layered noise (Perlin noise) to decide how high the ground is. Each spot only needs its own coordinates, the seed, and a small lookup table, so every spot can be worked out on its own. That is what makes it a good fit for parallel computing.
+In Minecraft, the world is made from a seed. For every (x, z) spot, or column, the game uses layered noise (similar to Perlin noise) to decide how high the ground is. Each column only needs its own coordinates, the seed, and a small lookup table, so every column can be worked out on its own. That is what makes it a good fit for parallel computing.
 
-We will build a simple version of this that only makes the height of each spot: no caves, structures or villages. We will write it twice and run both on the same PC. One is a normal C++ program that goes through the spots one at a time, and the other is a CUDA program that gives each spot to its own GPU thread. We will check that both give the same heights, then time them on different world sizes and terrain types (plains, hills and mountains) to find out when the GPU actually becomes faster, and why.
+We will build a simple version of this that only makes the height of each spot: no caves, structures or villages. We will write it twice and run both on the same PC. One is a normal C++ program that goes through the spots one at a time, and the other is a CUDA program that gives each spot to its own GPU thread. We will check that both give the same heights, then time them on different world sizes and terrain types (plains, hilly and mountains) to find out when the GPU actually becomes faster, and why.
 
 ## 1. Project Description
 
-Minecraft generates terrain on the CPU, one 16 × 16 chunk (256 columns) at a time, and mods such as C2ME spread this work over several CPU cores. A chunk is a tiny job for a GPU, because launching a kernel and copying data has a fixed cost. So the GPU may only help when a lot of terrain is generated at once.
+Minecraft generates terrain one 16 × 16 chunk (256 columns) at a time, and performance mods such as C2ME spread this work over several CPU cores. A chunk is a small job for a GPU, because launching a kernel and copying data has a fixed cost. But if we generate a large world at once, the GPU may end up faster than the CPU. We will not copy Minecraft's generator exactly. We use it as a reference to build our own heightmap generator and measure how it performs.
 
-We do not copy Minecraft's real generator, and our terrain will not match a real Minecraft world with the same seed. We build a Minecraft-style heightmap generator and measure it. Our research questions are:
+Our research questions are below. They may be adjusted as we learn more during our project creation.
 
 1. **RQ1:** At what world size (16 × 16 up to 4096 × 4096 columns) does the GPU become faster than the CPU?
 2. **RQ2:** How does the speedup change with the number of noise octaves and the terrain type?
@@ -149,6 +149,8 @@ The height range -64 to 319 is the build range of recent Minecraft versions, use
 | Mountains | ridged | 100 | 90 | 0.004 | 6 | 10 to 190 | ≤ 8 blocks |
 
 Smoothness limit means the largest height difference between two neighboring columns. These limits are our targets. If a terrain type goes over its limit during testing, we adjust its numbers and report it.
+
+These limits are checked at each terrain type's normal number of octaves (plains 2, hilly 4, mountains 6). The 1 to 8 octave test for RQ2 is only about timing.
 
 **D. Precision, rounding and clamping.**
 
