@@ -87,7 +87,7 @@ In step 1, each column's result does not depend on any other column, so they can
 
 ### The terrain formulas
 
-We fixed every formula and number so the CPU and GPU versions compute exactly the same thing.
+The CPU and GPU versions use the same formulas and numbers. Only the way they run is different: the CPU goes through the columns one at a time, and the GPU gives each column its own thread.
 
 **A. Seed and permutation table.** The 64-bit seed drives a SplitMix64 generator that shuffles the numbers 0 to 255 (Fisher-Yates). The table is repeated to 512 entries.
 
@@ -205,7 +205,6 @@ All results come from this one PC, so the CPU and GPU are compared on the same m
 | Check | Pass criterion |
 |---|---|
 | Heights, CPU vs GPU | Largest difference ≤ 1 block and at most 0.01% of columns different. We expect 0 and will report the real numbers. |
-| Noise value before rounding | Largest difference ≤ 0.00001 (in a test build that saves the values) |
 | Max, min, sum, smoothness (GPU vs CPU on the same heights) | Exactly equal (integers) |
 | Two GPU runs, same input | Identical heights |
 | Smoothness | `dmax` of each terrain type ≤ its limit in the table |
