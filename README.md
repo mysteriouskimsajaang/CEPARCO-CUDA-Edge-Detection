@@ -206,39 +206,38 @@ All results come from this one PC, so the CPU and GPU are compared on the same m
 
 ## 5. How we will test and measure
 
-- Both versions use the same seed, terrain type and world size, in the same session.
-- We time the CPU with `std::chrono` and the GPU with CUDA events. We report kernel time and total time (copy to GPU, kernels, copy back).
-- Each test has one warm-up run and then 10 timed runs. We report the average, minimum and standard deviation.
-- Speedup = CPU average time / GPU average time. We always state whether it uses kernel time or total time.
+- The CPU and GPU versions run the same seed, terrain type and world size, one after the other on the same PC.
+- We time the CPU with `std::chrono` and the GPU with CUDA events. We report kernel time (just the GPU math) and total time (copy to GPU, kernels, copy back).
+- Each test has one warm-up run, which we throw away, and then 10 timed runs. We report the average, the minimum and the standard deviation.
+- Speedup = CPU average time / GPU average time. We always say whether it uses kernel time or total time.
 
-**Correctness checks** (run on every edge-case size, both seeds, and all three origins):
+**Correctness checks** (run on every edge-case size, both seeds (3762183612631 and 42) and all three origins):
 
 | Check | Pass criterion |
 |---|---|
 | Heights, CPU vs GPU | Largest difference ≤ 1 block and at most 0.01% of columns different. We expect 0 and will report the real numbers. |
 | Max, min, sum, smoothness (GPU vs CPU on the same heights) | Exactly equal (integers) |
 | Two GPU runs, same input | Identical heights |
-| Smoothness | `dmax` of each terrain type ≤ its limit in the table |
+| Smoothness | `dmax` of each terrain type ≤ its limit in section C |
 
 ## 6. Schedule and mid-project milestone
 
-| Week | What we will have done |
+| Week | Objectives |
 |---|---|
-| Week 6 | Milestone #1: this proposal |
+| Week 7 | Milestone #1: Revised proposal |
 | Week 10 | Milestone #2 (mid-project demo): the sequential CPU version is finished following section 2, and its heightmap picture looks like terrain. The first CUDA kernel (global memory) runs and passes the correctness checks on all edge-case sizes. We have our first CPU vs. GPU timings for at least three world sizes, and a first version of the 3D viewer. |
 | Week 13 | Milestone #3 (final submission and demo): all three terrain types and all five sizes, the constant and shared memory versions, the octave and block-size tests, reductions and the smoothness check, full correctness tests, results CSV and graphs, write-up of the parallel algorithms, and the finished GitHub repo |
 
 ## References
 
-Concurrent Chunk Management Engine (C2ME). (n.d.). CurseForge. https://www.curseforge.com/minecraft/mc-mods/c2me
+C2ME. (n.d.). *Concurrent chunk management engine* [Mod]. CurseForge. https://www.curseforge.com/minecraft/mc-mods/c2me
 
-Green, S. (2005). Implementing improved Perlin noise. In M. Pharr (Ed.), GPU Gems 2 (pp. 409–416). Addison-Wesley. https://developer.nvidia.com/gpugems/GPUGems2/gpugems2_chapter26.html
-
-NVIDIA Corporation. (n.d.). CUDA C++ programming guide. https://docs.nvidia.com/cuda/cuda-c-programming-guide/
+Green, S. (2005). Implementing improved Perlin noise. In M. Pharr (Ed.), *GPU Gems 2* (pp. 409–416). Addison-Wesley. https://developer.nvidia.com/gpugems/GPUGems2/gpugems2_chapter26.html
 
 Minecraft height limit 2026 – How high can you build? (Y=-64 to 319). (n.d.). BlockMosaic. https://mcimagetool.com/blog/minecraft-height-limit/
 
-Patel, A. J. (2015). Making maps with noise functions. Red Blob Games. https://www.redblobgames.com/maps/terrain-from-noise/
+NVIDIA Corporation. (n.d.). *CUDA C++ programming guide*. https://docs.nvidia.com/cuda/cuda-c-programming-guide/
 
-Perlin, K. (2002). Improving noise. ACM Transactions on Graphics, 21(3), 681–682. https://doi.org/10.1145/566654.566636
+Patel, A. J. (2015). *Making maps with noise functions*. Red Blob Games. https://www.redblobgames.com/maps/terrain-from-noise/
 
+Perlin, K. (2002). Improving noise. *ACM Transactions on Graphics, 21*(3), 681–682. https://doi.org/10.1145/566654.566636
