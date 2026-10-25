@@ -172,15 +172,15 @@ We will also look at the heightmap picture and the highest and lowest heights to
 
 ### What will not be parallelized
 
-- Building the permutation table from the seed (once, 256 values)
-- Allocating memory and copying data between the CPU and GPU
-- Saving files, the 3D viewer, comparing CPU and GPU results, timing statistics, the CSV file and graphs
+- **Building the permutation table from the seed.** It's only 256 values and is done once on the CPU. We build it the same way for both versions so the CPU and GPU get the same output, which makes comparing and testing on other computers easier.
+- **Allocating memory and copying data between the CPU and GPU.** This includes copying the permutation table to the GPU. It's part of the GPU's total time, so we measure it separately (RQ4).
+- **Saving files, the 3D viewer, comparing CPU and GPU results, the timing statistics, the CSV file and the graphs.** These only help us check and show the results. They are not what we are measuring.
 
-**If we have time:** a multi-core (OpenMP) CPU version as an extra reference, grass/dirt/stone layers per column, a simple "snowy" color for high ground, and a 3D-printed model of a small piece of the terrain. These are not part of the main scope or the milestones. Caves, structures and biome blending are out of scope.
+**If we have time:** a multi-core (OpenMP) CPU version as an extra reference, grass/dirt/stone layers per column, a simple "snowy" color for high ground, and a 3D-printed model of a small piece of the terrain. These are not part of the main scope or the milestones. Caves, structures and blending between terrain types are out of scope (THIS IS HARD).
 
 ## 3. Related studies
 
-Green (2005) already ran improved Perlin noise on a GPU using shaders, and it matched the CPU version, so GPU noise is not new.
+Green (2005) already ran improved Perlin noise on a GPU using shaders, and the result exactly matched the CPU version, so GPU noise is not new. The chapter also says the permutation table can be shared between implementations so they give the same results, which is what we do by building our table once and copying it to the GPU.
 
 For Minecraft, the C2ME mod speeds up chunk generation by using more CPU cores (C2ME, n.d.).
 
@@ -188,7 +188,9 @@ Patel (2015) is a tutorial that uses the same octave and ridged-noise approach a
 
 ### How ours is different
 
-The existing GPU noise work targets shading and texturing in graphics APIs, and C2ME targets multi-core CPUs. Our project uses CUDA to generate a whole heightmap and focuses on measuring: the world size where the GPU wins, the effect of work per column, memory type and block size, and the cost of copying data. We report both kernel time and total time including transfers, and we use the same PC for the CPU and GPU. We do not claim a new terrain algorithm.
+The existing GPU noise work targets shading and texturing in graphics APIs (mostly 3D noise), and C2ME targets multi-core CPUs. Our project uses CUDA to generate a whole heightmap and focuses on measuring: the world size where the GPU wins, the effect of work per column, memory type and block size, and the cost of copying data. We report both kernel time and total time including transfers, and we use the same PC for the CPU and GPU. We do not claim a new terrain algorithm.
+
+Minecraft does not say why it generates terrain on the CPU, but we think there are a few reasons. The world is made in small 16 × 16 chunks, which is not much work for a GPU, and the results have to go back to the CPU anyway for things like mobs and collisions. Structures also have a lot of `if` conditions, which GPUs handle badly because threads that take different paths slow each other down. Servers may also have no GPU. This is our own guess. Our project tests the first reason directly by measuring how big the world has to be before the GPU is worth it.
 
 ## 4. Our setup
 
