@@ -89,19 +89,16 @@ In step 1, each column's result does not depend on any other column, so they can
 
 The CPU and GPU versions use the same formulas and numbers. Only the way they run is different: the CPU goes through the columns one at a time, and the GPU gives each column its own thread.
 
-**A. Seed and permutation table.** The 64-bit seed drives a SplitMix64 generator that shuffles the numbers 0 to 255 (Fisher-Yates). The table is repeated to 512 entries.
+**A. Seed and permutation table.** The seed is a 64-bit number. We use it to start a pseudo-random generator, then use that to shuffle the numbers 0 to 255 into a lookup table (the permutation table). The same seed always gives the same table. The table is built once on the CPU and copied to the GPU, so both versions use the identical table. We repeat it to 512 entries so lookups don't need to wrap around.
 
 ```text
-state = seed
-next(): state += 0x9E3779B97F4A7C15
-        z = state
-        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9
-        z = (z ^ (z >> 27)) * 0x94D049BB133111EB
-        return z ^ (z >> 31)
-p[i] = i for i = 0..255
-for i = 255 down to 1: j = next() mod (i + 1); swap(p[i], p[j])
+rng = mt19937_64(seed)
+p = [0, 1, 2, ..., 255]
+for i = 255 down to 1:  j = rng() mod (i + 1);  swap(p[i], p[j])
 perm[i] = p[i mod 256] for i = 0..511
 ```
+
+We use a Fisher-Yates shuffle. We start from the end of the list and swap each number with a randomly chosen number from the part of the list before it. The random numbers come from `mt19937_64`, a standard C++ generator that gives the same numbers for the same seed on any computer. This way, if other group members run the code, they get the exact same terrain, so our results can be compared fairly. 
 
 **B. 2D Perlin noise (improved version, Perlin 2002).**
 
@@ -156,7 +153,7 @@ Smoothness limit means the largest height difference between two neighboring col
 - All noise math uses 32-bit `float` on both CPU and GPU. The table is `uint8_t`, heights are `int`, and sums are 64-bit integers.
 - Rounding is `floorf` (round down), then convert to `int`. Heights are clamped to [-64, 319], and we report how many columns were clamped (expected 0).
 - For the grayscale picture only, a height h is scaled to 0 to 255 using `round(255 * (h - hmin) / (hmax - hmin))`. This is for display and is not part of the comparison.
-- The CPU is compiled in Release mode and the GPU with `nvcc -O3 --fmad=false`. We do not use fast-math or fused multiply-add on either side, so both round the same way.
+- The CPU is compiled in Release mode and the GPU with `nvcc -O3 --fmad=false`. We turn off fast-math and fused multiply-add on both sides. These are shortcuts that can round numbers slightly differently on the CPU and GPU, and we want the same results on both.
 
 **E. Statistics.** We compute `hmax`, `hmin`, `hsum` and the average height. For smoothness, each column gets `d = max(|h(x,z) - h(x+1,z)|, |h(x,z) - h(x,z+1)|)` using only neighbors that exist (a 1 × 1 world has d = 0), and we report `dmax` and the average d.
 
@@ -198,7 +195,6 @@ All results come from this one PC, so the CPU and GPU are compared on the same m
 - We time the CPU with `std::chrono` and the GPU with CUDA events. We report kernel time and total time (copy to GPU, kernels, copy back).
 - Each test has one warm-up run and then 10 timed runs. We report the average, minimum and standard deviation.
 - Speedup = CPU average time / GPU average time. We always state whether it uses kernel time or total time.
-- Results go in a CSV file and into graphs. We will find the actual speedup by testing it.
 
 **Correctness checks** (run on every edge-case size, both seeds, and all three origins):
 
