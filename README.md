@@ -69,23 +69,29 @@ Nothing is loaded from a file. Everything is set by numbers we type in:
 
 ## 2. What we will parallelize and how
 
+This part describes which parts of the program can run in parallel, and how we split the work between many workers instead of one doing all the calculations.
+
 | Step | CPU (sequential) | GPU (CUDA) |
 |---|---|---|
 | 1. Height of every column | Nested loop over all columns | One kernel, one thread per column |
 | 2. Max, min and sum of heights | One loop over the height array | Reduction kernel (atomics, and a shared-memory version) |
 | 3. Smoothness check | One loop comparing each column to its right and lower neighbor | One kernel, then the same reduction |
 
-In step 1, each column's result does not depend on any other column, so they can all be done at the same time.
+In step 1, each column's result does not depend on any other column, so they can all be done at the same time. 
+
+Step 2 finds the highest point, the lowest point, and the total of all the heights. If every thread writes to the same result at the same time, they have to wait in line for each other, which is slow (this is the atomics version). So we also try a shared-memory version: the threads are split into groups (blocks), each group finds its own highest, lowest and total, and then we combine the group answers.
+
+Step 3 checks if the terrain is smooth by comparing each column to its neighbors. Each column needs its neighbors' heights to already exist, so this only starts after all the heights are generated.
 
 ### Our plan for the GPU version
 
-- **One thread per column.** In a 2D grid of blocks, each thread computes `x = blockIdx.x * blockDim.x + threadIdx.x` and `z = blockIdx.y * blockDim.y + threadIdx.y`. The grid has `ceil(W / bx) × ceil(H / by)` blocks. Each thread checks `if (x < W && z < H)` first, so threads in partly filled blocks do nothing (the edge-case sizes test this).
-- **Same function on CPU and GPU.** The height function is written once with `__host__ __device__`, so both versions run the same math.
-- **Permutation table.** Built once on the CPU from the seed (512 bytes) and copied to the GPU. We compare three places for it: global memory, constant memory and shared memory. Constant memory is fast when all threads read the same address, but noise lookups depend on the coordinates, so we treat it as something to test, not as a guaranteed speedup.
+- **One thread per column.** Each thread works out which column it owns from its block number and its position in the block. We launch enough blocks to cover the whole world, rounding up. Some threads in the last blocks fall outside the world, so each thread first checks `if (x < W && z < H)` and does nothing if it is outside. The odd edge-case sizes test this. Basically, each thread computes exactly one height, and a thread that has no column to compute (like in the edge-case sizes) simply does nothing.
+- **Same function on CPU and GPU.** We write the height function once with `__host__ __device__`, so both versions run the same math. 
+- **Permutation table.** We build it once on the CPU from the seed (512 bytes) and copy it to the GPU. We test three places to keep it: global, constant and shared memory. Constant memory is fast when all threads read the same spot, but our threads read different spots, so we treat it as something to test, not as a sure speedup. Both versions use this same table, which is built on the CPU, so their outputs match and the comparison is fair.
 - **Block size.** We test 64, 256, 512 and 1024 threads per block (8 × 8, 16 × 16, 32 × 16, 32 × 32).
-- **Max, min and sum.** First version: `atomicMax`, `atomicMin` and `atomicAdd` on one value. Second version: each block reduces in shared memory with `__syncthreads()`, then adds its result with one atomic. Our lecture notes that many threads using atomics on one location slows things down, so we expect the second version to be faster and will test it.
-- **Data transfer.** We compare explicit copies (`cudaMalloc` and `cudaMemcpy`) with unified memory (`cudaMallocManaged`, with and without prefetch). Heights stay on the GPU for the reductions, and only the final numbers are copied back.
-- We follow the CUDA thread, block and memory model described in the CUDA C++ Programming Guide (NVIDIA, n.d.) and our lecture.
+- **Max, min and sum.** First version: every thread uses `atomicMax`, `atomicMin` and `atomicAdd` on one value. Second version: each block combines its own values in shared memory (waiting with `__syncthreads()` until the whole block is done), then writes one result with one atomic. Our lecture says many atomics on one spot slow things down, so we expect the second version to be faster, which is why we will test that.
+- **Data transfer.** We compare copying the data ourselves (`cudaMalloc` and `cudaMemcpy`) with letting CUDA do it (`cudaMallocManaged`, with and without prefetch). The heights stay on the GPU while steps 2 and 3 run. We copy the full height array back only to compare with the CPU or to save it.
+- We follow the CUDA thread, block and memory model from the CUDA C++ Programming Guide (NVIDIA, n.d.) and our lecture.
 
 ### The terrain formulas
 
