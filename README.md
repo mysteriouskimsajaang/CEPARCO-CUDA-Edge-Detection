@@ -174,8 +174,6 @@ Perlin (1985) invented gradient noise and Perlin (2002) improved it; we use the 
 
 Green (2005) already ran improved Perlin noise on a GPU using shaders, and it matched the CPU version, so GPU noise is not new.
 
-Lagae et al. (2010) is a survey of procedural noise functions.
-
 For Minecraft, the C2ME mod speeds up chunk generation by using more CPU cores (C2ME, n.d.).
 
 Patel (2015) is a tutorial that uses the same octave and ridged-noise approach as ours, and notes that noise alone has no large-scale features like rivers.
@@ -227,8 +225,6 @@ All results come from this one PC, so the CPU and GPU are compared on the same m
 Concurrent Chunk Management Engine (C2ME). (n.d.). CurseForge. https://www.curseforge.com/minecraft/mc-mods/c2me
 
 Green, S. (2005). Implementing improved Perlin noise. In M. Pharr (Ed.), GPU Gems 2 (pp. 409–416). Addison-Wesley. https://developer.nvidia.com/gpugems/GPUGems2/gpugems2_chapter26.html
-
-Lagae, A., Lefebvre, S., Cook, R., DeRose, T., Drettakis, G., Ebert, D. S., Lewis, J. P., Perlin, K., & Zwicker, M. (2010). A survey of procedural noise functions. Computer Graphics Forum, 29(8), 2579–2600. https://doi.org/10.1111/j.1467-8659.2010.01827.x
 
 NVIDIA Corporation. (n.d.). CUDA C++ programming guide. https://docs.nvidia.com/cuda/cuda-c-programming-guide/
 
