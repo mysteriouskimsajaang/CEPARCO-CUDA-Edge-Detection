@@ -6,9 +6,9 @@
 
 ## Abstract
 
-Minecraft worlds are generated from a seed. For each (x, z) column, the generator uses layered noise (Perlin noise) to decide the height Y of the ground. A column's height depends only on its own coordinates, the seed, and a small shared lookup table, so every column can be computed independently. This is data-level parallelism.
+In Minecraft, the world is made from a seed. For every (x, z) spot, the game uses layered noise (Perlin noise) to decide how high the ground is. Each spot only needs its own coordinates, the seed, and a small lookup table, so every spot can be worked out on its own. That is what makes it a good fit for parallel computing.
 
-We will build a simplified terrain generator with no caves, structures or villages, only the height of each column. We will make two versions and run both on the same PC: a sequential C++ version that computes one column at a time, and a CUDA version that gives each column its own GPU thread. We will check that both give the same heights, then compare their run times. We will test different world sizes, noise octaves, and three terrain types (plains, hilly, and mountains with a mountain-range look) to find out when the GPU becomes faster than the CPU, and why.
+We will build a simple version of this that only makes the height of each spot: no caves, structures or villages. We will write it twice and run both on the same PC. One is a normal C++ program that goes through the spots one at a time, and the other is a CUDA program that gives each spot to its own GPU thread. We will check that both give the same heights, then time them on different world sizes and terrain types (plains, hills and mountains) to find out when the GPU actually becomes faster, and why.
 
 ## 1. Project Description
 
@@ -18,14 +18,14 @@ We do not copy Minecraft's real generator, and our terrain will not match a real
 
 1. **RQ1:** At what world size (16 × 16 up to 4096 × 4096 columns) does the GPU become faster than the CPU?
 2. **RQ2:** How does the speedup change with the number of noise octaves and the terrain type?
-3. **RQ3:** How do memory type (global, constant, shared) and block size (64, 256, 512, 1024 threads) change GPU time?
-4. **RQ4:** How much of the GPU's total time is spent copying data?
+3. **RQ3:** Does it matter where we keep the lookup table (global, constant or shared memory), and how many threads we put in each block?
+4. **RQ4:** How much of the GPU's total time is just copying data to and from the GPU?
 
 We also check that the terrain is smooth, meaning no sudden cliffs between neighboring columns.
 
 ### Inputs
 
-The program has no image or file input. All inputs are numbers given by the user:
+Nothing is loaded from a file. Everything is set by numbers we type in:
 
 | Input | Values |
 |---|---|
@@ -36,7 +36,7 @@ The program has no image or file input. All inputs are numbers given by the user
 | Octaves | Default per terrain type. For RQ2 we also try 1, 2, 4, 6 and 8 octaves on the hilly type. |
 | Block size | 16 × 16 (256 threads) by default. For RQ3 we also try 8 × 8, 32 × 16 and 32 × 32. |
 
-**Benchmark sizes** (used for timing):
+**Benchmark sizes** (used for timing, from one Minecraft chunk up to a Large world):
 
 | Test | World size | Columns | Chunks (16 × 16) |
 |---|---:|---:|---:|
@@ -46,15 +46,15 @@ The program has no image or file input. All inputs are numbers given by the user
 | Medium | 1024 × 1024 | 1,048,576 | 4,096 |
 | Large | 4096 × 4096 | 16,777,216 | 65,536 |
 
-**Edge-case sizes** (used for correctness and bounds checking). All benchmark sizes are multiples of 16, so they never leave a partly filled block. These sizes do:
+**Edge-case sizes** (used for correctness and bounds checking). All the benchmark sizes are multiples of 16, so they never leave a partly filled block. These test whether our bounds check actually works:
 
 | Size | Why |
 |---|---|
 | 1 × 1, 3 × 3 | Smaller than one block. A 1 × 1 world has no neighbors. |
 | 2 × 100, 100 × 2 | Very thin: one side smaller than a block, the other very long. |
-| 15 × 17, 17 × 5 | One side just under or over the block size; partly filled blocks. |
+| 15 × 17, 17 × 5 | One side smaller than a block and one side larger. |
 | 255 × 257 | Just under and just over a multiple of 16. |
-| 1001 × 777 | Random non-multiples, not square. |
+| 1001 × 777 | An odd-sized world that isn't square. |
 | 4097 × 4097 | One past the largest benchmark size. |
 
 ### Outputs
