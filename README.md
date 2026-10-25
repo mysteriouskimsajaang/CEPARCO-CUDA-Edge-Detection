@@ -225,8 +225,8 @@ All results come from this one PC, so the CPU and GPU are compared on the same m
 | Week | Objectives |
 |---|---|
 | Week 7 | Milestone #1: Revised proposal |
-| Week 10 | Milestone #2 (mid-project demo): the sequential CPU version is finished following section 2, and its heightmap picture looks like terrain. The first CUDA kernel (global memory) runs and passes the correctness checks on all edge-case sizes. We have our first CPU vs. GPU timings for at least three world sizes, and a first version of the 3D viewer. |
-| Week 13 | Milestone #3 (final submission and demo): all three terrain types and all five sizes, the constant and shared memory versions, the octave and block-size tests, reductions and the smoothness check, full correctness tests, results CSV and graphs, write-up of the parallel algorithms, and the finished GitHub repo |
+| Week 10 | Milestone #2 (mid-project demo): The CPU version and the first CUDA version (global memory) both generate heightmaps for the plains and hilly terrain types, and their outputs match within our tolerance (section 5) on all the edge-case sizes. We have our first CPU vs. GPU timings for at least three world sizes. A first version of the 3D viewer is used to check that the heights look like terrain, so we can adjust the noise numbers. |
+| Week 13 | Milestone #3 (final submission and demo): A polished, working project for all three terrain types (including mountains) and all five world sizes. This includes the constant and shared memory versions, the octave and block-size tests, the statistics and smoothness checks, all correctness tests passed, the results CSV and graphs, the write-up, and the finished GitHub repo. |
 
 ## References
 
