@@ -36,6 +36,8 @@ Nothing is loaded from a file. Everything is set by numbers we type in:
 | Octaves | Default per terrain type. For RQ2 we also try 1, 2, 4, 6 and 8 octaves on the hilly type. |
 | Block size | 16 × 16 (256 threads) by default. For RQ3 we also try 8 × 8, 32 × 16 and 32 × 32. |
 
+**A note on the last two rows.** More octaves adds more small details to the terrain, like rocks popping out of the hills. Fewer octaves gives smoother terrain, like the Chocolate Hills. Block size doesn't change the terrain at all. It only changes how the threads are grouped: many small groups or a few big ones.
+
 **Benchmark sizes** (used for timing, from one Minecraft chunk up to a Large world):
 
 | Test | World size | Columns | Chunks (16 × 16) |
