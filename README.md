@@ -170,8 +170,6 @@ Smoothness limit means the largest height difference between two neighboring col
 
 ## 3. Related studies
 
-Perlin (1985) invented gradient noise and Perlin (2002) improved it; we use the improved version. Perlin (2004) says the improved noise is meant to give the same values on every platform, which is what we need for our CPU-vs-GPU check.
-
 Green (2005) already ran improved Perlin noise on a GPU using shaders, and it matched the CPU version, so GPU noise is not new.
 
 For Minecraft, the C2ME mod speeds up chunk generation by using more CPU cores (C2ME, n.d.).
@@ -230,8 +228,5 @@ NVIDIA Corporation. (n.d.). CUDA C++ programming guide. https://docs.nvidia.com/
 
 Patel, A. J. (2015). Making maps with noise functions. Red Blob Games. https://www.redblobgames.com/maps/terrain-from-noise/
 
-Perlin, K. (1985). An image synthesizer. Computer Graphics (Proceedings of SIGGRAPH 85), 19(3), 287–296.
-
 Perlin, K. (2002). Improving noise. ACM Transactions on Graphics, 21(3), 681–682. https://doi.org/10.1145/566654.566636
 
-Perlin, K. (2004). Implementing improved Perlin noise. In R. Fernando (Ed.), GPU Gems (pp. 73–85). Addison-Wesley. https://developer.nvidia.com/gpugems/GPUGems/gpugems_ch05.html
