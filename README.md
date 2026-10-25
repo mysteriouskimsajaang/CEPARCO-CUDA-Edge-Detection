@@ -108,7 +108,9 @@ perm[i] = p[i mod 256] for i = 0..511
 
 We use a Fisher-Yates shuffle. We start from the end of the list and swap each number with a randomly chosen number from the part of the list before it. The random numbers come from `mt19937_64`, a standard C++ generator that gives the same numbers for the same seed on any computer. This way, if other group members run the code, they get the exact same terrain, so our results can be compared fairly. 
 
-**B. 2D Perlin noise (improved version, Perlin 2002).**
+**B. 2D Perlin noise (adapted from the improved version, Perlin 2002).**
+
+Imagine graph paper where every crossing has an arrow chosen from the permutation table. To get a value for a point, we look at the four crossings (corners) around the square it sits in. Each one pushes the value a little depending on how the point lines up with its arrow, then we blend the four pushes smoothly into one number. The fade curve keeps the blending smooth, so there are no sharp edges between squares. More octaves add small bumps on top, like rocky features. The result is a value between about -1 and 1. Nearby points give nearby values, so neighboring columns get similar heights.
 
 ```text
 fade(t)       = 6t^5 - 15t^4 + 10t^3
@@ -130,23 +132,23 @@ noise(x, z):
 
 The result is a smooth value between about -1 and 1. Nearby inputs give nearby outputs, so neighboring columns get similar heights.
 
-**C. Octaves and terrain height.** We add several noise layers (octaves). Each octave has double the frequency (lacunarity 2.0) and half the strength (persistence 0.5) of the previous one. Mountains use **ridged** noise: the value of each octave is flipped so that the lines where noise is near 0 become sharp ridges. With a low base frequency, this gives long mountain ranges instead of random spikes.
+**C. Octaves and terrain height.** Think of an octave as a zoom level. From far away you see one big smooth shape, closer you see hills on the slopes, and really close you see the rocks. The first layer is the big smooth shape, and each layer after it has twice the detail (lacunarity 2.0) and half the strength (persistence 0.5). We add the layers together, so we get a big hill with small bumps on it. Mountains also use **ridged** noise, which flips each layer so the places where the noise is near 0 become sharp ridges. With a low base frequency, we expect this to give long mountain ranges instead of random spikes.
 
 ```text
 fbm(xw, zw):
   sum = 0; amp = 1; freq = f0
   for o = 0 .. N-1:
-    n = noise(xw*freq + 17.37*o, zw*freq + 31.91*o)
-    if ridged: n = 1 - 2 * abs(n)
-    sum += amp * n
-    freq = freq * 2.0; amp = amp * 0.5
-  return sum * invNorm        invNorm = 1 / (2 * (1 - 0.5^N))
+    n = noise(xw*freq + 17.37*o, zw*freq + 31.91*o)   // sample one zoom level
+    if ridged: n = 1 - 2 * abs(n)                      // flip into sharp ridges
+    sum += amp * n                                     // add it, scaled by its strength
+    freq = freq * 2.0; amp = amp * 0.5                 // next layer: 2x detail, half strength
+  return sum * invNorm   // invNorm = 1 / (2 * (1 - 0.5^N)), keeps it near -1 to 1
 
 xw = x0 + x;  zw = z0 + z
 h  = clamp( floor( B + A * fbm(float(xw), float(zw)) ), -64, 319 )
 ```
 
-The height range -64 to 319 is the build range of recent Minecraft versions, used as a reference. The three terrain types only differ in these numbers (B = base height, A = amplitude in blocks, f0 = base frequency, N = octaves):
+Recent Minecraft versions have a world 384 blocks tall, from Y = -64 to Y = 319 ("Minecraft height limit 2026", n.d.), so we use that as our height limit. The three terrain types only differ in these numbers (B = base height, A = amplitude in blocks, f0 = base frequency, N = octaves):
 
 | Type | Noise | B | A | f0 | N | Height range (B ± A) | Smoothness limit |
 |---|---|---:|---:|---:|---:|---|---|
@@ -157,6 +159,8 @@ The height range -64 to 319 is the build range of recent Minecraft versions, use
 Smoothness limit means the largest height difference between two neighboring columns. These limits are our targets. If a terrain type goes over its limit during testing, we adjust its numbers and report it.
 
 These limits are checked at each terrain type's normal number of octaves (plains 2, hilly 4, mountains 6). The 1 to 8 octave test for RQ2 is only about timing.
+
+We will also look at the heightmap picture and the highest and lowest heights to make sure each terrain type looks like its name (plains flat, hilly rolling, mountains tall and ridged). Since we are adding several layers of noise together, the highs and lows of different layers can partly cancel each other out, so the terrain may come out flatter than we expect, like a plain with a few bumps. If that happens, for example if the mountain features get washed out, we will adjust the numbers. Patel (2015) says to expect this kind of hand-tuning when generating terrain from noise.
 
 **D. Precision, rounding and clamping.**
 
@@ -230,6 +234,8 @@ Concurrent Chunk Management Engine (C2ME). (n.d.). CurseForge. https://www.curse
 Green, S. (2005). Implementing improved Perlin noise. In M. Pharr (Ed.), GPU Gems 2 (pp. 409–416). Addison-Wesley. https://developer.nvidia.com/gpugems/GPUGems2/gpugems2_chapter26.html
 
 NVIDIA Corporation. (n.d.). CUDA C++ programming guide. https://docs.nvidia.com/cuda/cuda-c-programming-guide/
+
+Minecraft height limit 2026 – How high can you build? (Y=-64 to 319). (n.d.). BlockMosaic. https://mcimagetool.com/blog/minecraft-height-limit/
 
 Patel, A. J. (2015). Making maps with noise functions. Red Blob Games. https://www.redblobgames.com/maps/terrain-from-noise/
 
