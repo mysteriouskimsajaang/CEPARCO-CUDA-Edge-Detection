@@ -148,7 +148,7 @@ xw = x0 + x;  zw = z0 + z
 h  = clamp( floor( B + A * fbm(float(xw), float(zw)) ), -64, 319 )
 ```
 
-Recent Minecraft versions have a world 384 blocks tall, from Y = -64 to Y = 319 ("Minecraft height limit 2026", n.d.), so we use that as our height limit. The three terrain types only differ in these numbers (B = base height, A = amplitude in blocks, f0 = base frequency, N = octaves):
+Recent Minecraft versions have a world 384 blocks tall, from Y = -64 to Y = 319 ("Minecraft height limit 2026", n.d.), so we use that as our height limit. The three terrain types only differ in these settings (B = base height, A = amplitude in blocks, f0 = base frequency, N = octaves):
 
 | Type | Noise | B | A | f0 | N | Height range (B ± A) | Smoothness limit |
 |---|---|---:|---:|---:|---:|---|---|
@@ -156,20 +156,19 @@ Recent Minecraft versions have a world 384 blocks tall, from Y = -64 to Y = 319 
 | Hilly | normal | 72 | 24 | 0.008 | 4 | 48 to 96 | ≤ 4 blocks |
 | Mountains | ridged | 100 | 90 | 0.004 | 6 | 10 to 190 | ≤ 8 blocks |
 
-Smoothness limit means the largest height difference between two neighboring columns. These limits are our targets. If a terrain type goes over its limit during testing, we adjust its numbers and report it.
-
-These limits are checked at each terrain type's normal number of octaves (plains 2, hilly 4, mountains 6). The 1 to 8 octave test for RQ2 is only about timing.
+Smoothness limit means the largest height difference between two neighboring columns. These limits are our targets, checked at each terrain type’s normal number of octaves (plains 2, hilly 4, mountains 6). If a terrain type goes over its limit during testing, we adjust its numbers and report it. The 1 to 8 octave test for RQ2 is only about timing.
 
 We will also look at the heightmap picture and the highest and lowest heights to make sure each terrain type looks like its name (plains flat, hilly rolling, mountains tall and ridged). Since we are adding several layers of noise together, the highs and lows of different layers can partly cancel each other out, so the terrain may come out flatter than we expect, like a plain with a few bumps. If that happens, for example if the mountain features get washed out, we will adjust the numbers. Patel (2015) says to expect this kind of hand-tuning when generating terrain from noise.
 
 **D. Precision, rounding and clamping.**
 
-- All noise math uses 32-bit `float` on both CPU and GPU. The table is `uint8_t`, heights are `int`, and sums are 64-bit integers.
-- Rounding is `floorf` (round down), then convert to `int`. Heights are clamped to [-64, 319], and we report how many columns were clamped (expected 0).
-- For the grayscale picture only, a height h is scaled to 0 to 255 using `round(255 * (h - hmin) / (hmax - hmin))`. This is for display and is not part of the comparison.
-- The CPU is compiled in Release mode and the GPU with `nvcc -O3 --fmad=false`. We turn off fast-math and fused multiply-add on both sides. These are shortcuts that can round numbers slightly differently on the CPU and GPU, and we want the same results on both.
+- All the noise math uses 32-bit `float` on both the CPU and GPU, so they do the same kind of math. Heights are whole numbers (`int`), and totals are 64-bit because a big world adds up to more than a normal `int` can hold.
+- We round down with `floorf`, then convert to `int`. We use floor because it handles negative heights the same way every time. Heights are clamped to [-64, 319], and we report how many columns were clamped (expected 0).
+- Our CPU and GPU should give exactly the same heights. We still allow a 1 block difference in case of tiny rounding differences, but we expect 0.
+- To keep both sides doing the same math, the GPU is compiled with `nvcc -O3 --fmad=false` and the CPU is built in Release mode without fast-math. These settings are shortcuts that make a number round a little differently, so we turn them off.
+- For the grayscale picture only, a height h is scaled to 0 to 255 using `round(255 * (h - hmin) / (hmax - hmin))`. There can be up to 384 different heights but only 256 grays, so a few heights may share a gray. If hmax = hmin, the picture is all one gray. This is just for display and is not part of the comparison.
 
-**E. Statistics.** We compute `hmax`, `hmin`, `hsum` and the average height. For smoothness, each column gets `d = max(|h(x,z) - h(x+1,z)|, |h(x,z) - h(x,z+1)|)` using only neighbors that exist (a 1 × 1 world has d = 0), and we report `dmax` and the average d.
+**E. Statistics.** We compute `hmax` (highest column), `hmin` (lowest column), `hsum` (all heights added up) and the average height. For smoothness, each column gets `d = max(|h(x,z) - h(x+1,z)|, |h(x,z) - h(x,z+1)|)`, which is how much its height differs from the neighbor next to it and the neighbor behind it. We only use neighbors that exist, so a 1 × 1 world has d = 0. We report `dmax` (the steepest spot) and the average d.
 
 ### What will not be parallelized
 
